@@ -25,7 +25,7 @@ class PendingUser(BaseModel):
 
 
 
-    def is_valild(self)->bool:
+    def is_valid(self)->bool:
         life_span_in_seconds=20*60
         now=datetime.now(timezone.utc)
         timediff=now-self.created_at
