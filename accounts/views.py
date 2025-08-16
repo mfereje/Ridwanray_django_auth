@@ -6,7 +6,8 @@ from .models import PendingUser
 from django.contrib.auth.hashers import make_password
 from datetime import datetime,timezone
 from common.tasks import send_email
-from .models import User
+from .models import User,Token,TokenType
+from django.contrib.auth import get_user_model
 
 # Create your views here.
 def home(request:HttpRequest):
@@ -99,3 +100,76 @@ def verify_account(request:HttpRequest):
             messages.error(request,"Invalid or expired verification code")
             return render(request, 'verify_account.html',{'email':email}, status=400)
 
+def send_email_password_reset_link(request : HttpRequest):
+    if request.method == 'POST':
+        email:str = request.POST.get('email',"")
+        user = get_user_model().objects.filter(email = email.lower()).first()
+        if user:
+           token, _ = Token.objects.update_or_create(
+                user = user,
+                token_type = TokenType.PASSWORD_RESET,
+                defaults={
+                    'token' : get_random_string(20),
+                    'created_at' : datetime.now(timezone.utc) 
+                }
+            )
+           email_data = {
+               'email' : email,
+               'token' : token.token
+           }
+           send_email(
+               "Your Password Reset Link",
+            [email],
+               "emails/password_reset_template.html",
+               email_data
+           )
+
+           messages.success(request,"Reset link sent to your email")
+           return redirect('reset_password_via_email')
+
+        else:
+            messages.error(request,"Email not found")
+            return redirect('reset_password_via_email')
+
+    else:
+        return render(request, 'forgot_password.html')
+    
+def verify_password_reset_link(request:HttpRequest):
+    email = request.GET.get("email")
+    reset_token = request.GET.get('token')
+
+    token : Token = Token.objects.filter(
+        user__email=email, token = reset_token, token_type = TokenType.PASSWORD_RESET
+    ).first()
+
+    if not token or not token.is_valid():
+        messages.error(request,"invalid or expired reset link")
+        return redirect('reset_password_via_email')
+    
+    return render(request, 'set_new_password_using_reset_token.html',context={'email' : email,'token' : reset_token})
+
+
+
+def reset_password_using_reset_link(request : HttpRequest):
+    ''' set a new password given the token sent to a user email '''
+    if request.method == 'POST':
+        password1 = request.POST.get('password1')
+        password2 = request.POST.get('password2')
+        email  = request.POST.get('email')
+        reset_token = request.POST.get('token')
+
+        if password1 != password2:
+            messages.error(request, "Password not match")
+            return render(request,'set_new_password_using_reset_token.html',context={'email' : email,'token' : reset_token})
+        
+    token : Token = Token.objects.filter(
+        user__email=email, token = reset_token, token_type = TokenType.PASSWORD_RESET
+    ).first()
+
+    if not token or not token.is_valid():
+        messages.error(request,"invalid or expired reset link")
+        return redirect('reset_password_via_email')
+    token.reset_user_password(password1)
+    token.delete()
+    messages.success(request,"Password changed")
+    return redirect('login')
