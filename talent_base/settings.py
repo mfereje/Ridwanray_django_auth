@@ -46,6 +46,7 @@ INSTALLED_APPS = [
 #custom User Model
 AUTH_USER_MODEL="accounts.User"
 
+LOGIN_URL = '/auth/login'
 
 
 MIDDLEWARE = [
@@ -134,4 +135,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # EMAIL CONFIG
-EMAIL_BACKEND ='django.core.mail.backends.console.EmailBackend'
+#EMAIL_BACKEND ='django.core.mail.backends.console.EmailBackend'
+# settings.py
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp-relay.brevo.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+# Use the verified login from Brevo
+EMAIL_HOST_USER = '7e9566002@smtp-brevo.com'  # Your SMTP login
+EMAIL_HOST_PASSWORD = 'SJ8CPaXQg3KdMfNt'    # The SMTP key generated in Brevo
+
+# Optional: default "from" address
+DEFAULT_FROM_EMAIL = 'TalentBase <7e9566002@smtp-brevo.com>'
+
+# celery config
+
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIARIZER = "json"
+CELERY_RESULT_SERIARIZER = "json"
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_RESULT_BACKEND ="redis://localhost:6379/0"

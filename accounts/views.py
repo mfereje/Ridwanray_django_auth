@@ -8,11 +8,12 @@ from datetime import datetime,timezone
 from common.tasks import send_email
 from .models import User,Token,TokenType
 from django.contrib.auth import get_user_model
-
+from .decorators import redirect_authenticated_user
 # Create your views here.
 def home(request:HttpRequest):
     return render(request,'home.html')
 
+@redirect_authenticated_user
 def login(request:HttpRequest):
     if request.method == 'POST':
         email:str = request.POST.get('email')
@@ -61,7 +62,7 @@ def register(request : HttpRequest):
             })
 
             #sent email
-            send_email(
+            send_email.delay(
                 "Verify Your Account",
                 [cleaned_email],
                 "emails/email_verification_template.html",
@@ -100,7 +101,7 @@ def verify_account(request:HttpRequest):
             messages.error(request,"Invalid or expired verification code")
             return render(request, 'verify_account.html',{'email':email}, status=400)
 
-def send_email_password_reset_link(request : HttpRequest):
+def send_password_reset_link(request : HttpRequest):
     if request.method == 'POST':
         email:str = request.POST.get('email',"")
         user = get_user_model().objects.filter(email = email.lower()).first()
@@ -117,7 +118,7 @@ def send_email_password_reset_link(request : HttpRequest):
                'email' : email,
                'token' : token.token
            }
-           send_email(
+           send_email.delay(
                "Your Password Reset Link",
             [email],
                "emails/password_reset_template.html",
